@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Research 911 — Research made easy.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF2F6;
+    --surface:#FFFFFF;
+    --surface-alt:#E3E9F1;
+    --ink:#1C2541;
+    --ink-soft:#5B6478;
+    --border:#D7DEE7;
+    --accent:#3E6259;
+    --accent-strong:#2C4A42;
+    --accent-soft:#DCEAE6;
+    --amber:#C97B25;
+    --amber-soft:#FBEBD2;
+    --danger:#B3492F;
+    --danger-soft:#F7E3DD;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --radius-sm:10px;
+    --shadow:0 10px 30px rgba(28,37,65,0.09);
+    --shadow-sm:0 2px 8px rgba(28,37,65,0.06);
+    --font-display:'Fraunces', serif;
+    --font-body:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+    --maxw:560px;
+    color-scheme: light;
+  }
+  [data-theme="dark"]{
+    --bg:#10141C;
+    --surface:#1A2029;
+    --surface-alt:#222939;
+    --ink:#E9ECF3;
+    --ink-soft:#9AA4B8;
+    --border:#2B3345;
+    --accent:#74AE9B;
+    --accent-strong:#8FC4B2;
+    --accent-soft:#1E2D2A;
+    --amber:#E6A855;
+    --amber-soft:#332715;
+    --danger:#E28C71;
+    --danger-soft:#33221D;
+    --shadow:0 10px 30px rgba(0,0,0,0.45);
+    --shadow-sm:0 2px 8px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    transition:background .25s ease, color .25s ease;
+  }
+  #app{
+    max-width:var(--maxw);
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  h1,h2,h3{font-family:var(--font-display); margin:0; letter-spacing:-0.01em;}
+  p{margin:0; line-height:1.55;}
+  button{font-family:var(--font-body); cursor:pointer;}
+  a{color:inherit;}
+  ::selection{background:var(--accent-soft); color:var(--accent-strong);}
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px 8px;
+  }
+  .brandmark{
+    display:flex; align-items:baseline; gap:8px; cursor:pointer;
+    background:none; border:none; padding:0; color:var(--ink);
+  }
+  .brandmark .mark{
+    font-family:var(--font-display); font-weight:700; font-size:1.05rem;
+  }
+  .theme-toggle{
+    width:40px; height:40px; border-radius:50%;
+    border:1px solid var(--border); background:var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; box-shadow:var(--shadow-sm);
+    transition:transform .15s ease;
+  }
+  .theme-toggle:active{transform:scale(0.92);}
+
+  main{flex:1; padding:8px 20px 40px; display:flex; flex-direction:column;}
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border-radius:999px; border:none; font-weight:600; font-size:1rem;
+    padding:16px 24px; min-height:52px; transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+    width:100%;
+  }
+  .btn:active{transform:scale(0.985);}
+  .btn-primary{background:var(--accent); color:#fff; box-shadow:0 6px 18px rgba(62,98,89,0.28);}
+  [data-theme="dark"] .btn-primary{box-shadow:0 6px 18px rgba(0,0,0,0.4); color:#0F1712;}
+  .btn-secondary{background:var(--surface); color:var(--ink); border:1.5px solid var(--border);}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border:1.5px solid transparent; padding:12px 18px;}
+  .btn-danger-text{background:transparent; color:var(--danger); font-weight:600; border:none; padding:10px 14px;}
+  .btn-sm{padding:10px 16px; min-height:auto; font-size:0.88rem; width:auto;}
+  .btn:disabled{opacity:0.55; cursor:not-allowed;}
+  .btn-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .btn-row .btn{flex:1; min-width:120px;}
+
+  /* ---------- Home ---------- */
+  .hero{padding:18px 0 6px; text-align:center;}
+  .hero-visual{width:100%; max-width:280px; height:130px; margin:6px auto 4px; display:block;}
+  .eyebrow{
+    font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--accent); font-weight:500;
+  }
+  .brand-title{font-size:2.35rem; font-weight:700; margin-top:6px; line-height:1.05;}
+  .tagline{
+    font-family:var(--font-display); font-style:italic; font-weight:500;
+    color:var(--ink-soft); font-size:1.15rem; margin-top:6px;
+  }
+  .explainer{
+    color:var(--ink-soft); font-size:1rem; margin:22px auto 0; max-width:420px; text-align:center;
+  }
+  .home-actions{margin-top:30px; display:flex; flex-direction:column; gap:12px;}
+  .reassurance{
+    margin-top:34px; text-align:center; font-family:var(--font-display); font-style:italic;
+    color:var(--accent-strong); font-size:0.98rem; padding:16px 18px; background:var(--accent-soft);
+    border-radius:var(--radius-md);
+  }
+
+  /* ---------- Cards / Sections ---------- */
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+    padding:20px; box-shadow:var(--shadow-sm);
+  }
+  .stack{display:flex; flex-direction:column; gap:16px;}
+
+  /* ---------- Form ---------- */
+  .field{margin-bottom:20px;}
+  .field label{
+    display:block; font-weight:600; font-size:0.92rem; margin-bottom:8px;
+  }
+  .field .hint{display:block; font-weight:400; color:var(--ink-soft); font-size:0.82rem; margin-top:6px;}
+  .field textarea, .field input, .field select{
+    width:100%; font-family:var(--font-body); font-size:1rem; padding:14px 16px;
+    border-radius:var(--radius-sm); border:1.5px solid var(--border);
+    background:var(--surface-alt); color:var(--ink); transition:border-color .15s ease;
+  }
+  .field textarea{min-height:96px; resize:vertical;}
+  .field textarea:focus, .field input:focus, .field select:focus{
+    outline:none; border-color:var(--accent);
+  }
+  .field-error{
+    color:var(--danger); font-size:0.86rem; margin-top:8px; display:flex; gap:6px; align-items:flex-start;
+  }
+  .field.has-error textarea, .field.has-error input, .field.has-error select{border-color:var(--danger);}
+  .page-title{font-size:1.5rem; margin-bottom:4px;}
+  .page-sub{color:var(--ink-soft); font-size:0.94rem; margin-bottom:24px;}
+  .back-row{display:flex; align-items:center; gap:4px; margin:2px 0 14px;}
+  .back-btn{
+    background:none; border:none; color:var(--ink-soft); font-size:0.92rem; font-weight:600;
+    display:flex; align-items:center; gap:4px; padding:8px 4px;
+  }
+
+  /* ---------- Results ---------- */
+  .prelim-badge{
+    display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono);
+    font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; font-weight:500;
+    color:var(--amber); background:var(--amber-soft); padding:6px 12px; border-radius:999px;
+  }
+  .disclaimer{
+    font-size:0.86rem; color:var(--ink-soft); background:var(--surface-alt);
+    border-left:3px solid var(--amber); padding:12px 14px; border-radius:8px; margin:14px 0 4px;
+  }
+  .result-card{position:relative;}
+  .result-card h3{font-size:1.02rem; margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+  .result-card .idx{
+    font-family:var(--font-mono); font-size:0.72rem; color:var(--accent);
+    background:var(--accent-soft); width:22px; height:22px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .result-card p{color:var(--ink); font-size:0.97rem;}
+  .obj-pair{border-top:1px dashed var(--border); padding-top:14px; margin-top:14px;}
+  .obj-pair:first-child{border-top:none; padding-top:0; margin-top:0;}
+  .obj-label{font-family:var(--font-mono); font-size:0.72rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px;}
+  .q-label{color:var(--accent-strong);}
+  .keywords{display:flex; flex-wrap:wrap; gap:8px;}
+  .keyword-chip{
+    font-family:var(--font-mono); font-size:0.82rem; background:var(--surface-alt);
+    border:1px solid var(--border); padding:7px 12px; border-radius:8px; color:var(--ink);
+  }
+  .copy-btn{
+    position:absolute; top:16px; right:16px; background:none; border:none; color:var(--ink-soft);
+    font-size:0.78rem; font-weight:600; padding:4px;
+  }
+  .copy-btn:active{color:var(--accent);}
+
+  /* ---------- Projects list ---------- */
+  .project-item{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);
+    padding:16px 18px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow-sm);
+  }
+  .project-title{font-family:var(--font-display); font-size:1.08rem; font-weight:600;}
+  .project-meta{color:var(--ink-soft); font-size:0.82rem; font-family:var(--font-mono);}
+  .project-actions{display:flex; gap:8px;}
+
+  .empty-state{
+    text-align:center; padding:50px 20px; color:var(--ink-soft);
+  }
+  .empty-state .glyph{font-size:2.2rem; margin-bottom:14px; opacity:0.6;}
+  .empty-state h3{color:var(--ink); font-size:1.15rem; margin-bottom:8px;}
+  .empty-state p{max-width:320px; margin:0 auto 22px;}
+
+  /* ---------- Loading ---------- */
+  .loading-card{
+    display:flex; flex-direction:column; align-items:center; text-align:center; padding:48px 24px; gap:18px;
+  }
+  .spinner{
+    width:44px; height:44px; border-radius:50%;
+    border:3px solid var(--surface-alt); border-top-color:var(--accent);
+    animation:spin 0.9s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-msg{color:var(--ink-soft); font-size:0.95rem;}
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(0);
+    background:var(--ink); color:var(--bg); padding:13px 22px; border-radius:999px;
+    font-size:0.9rem; font-weight:500; box-shadow:var(--shadow); z-index:50;
+    opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease;
+    max-width:88%; text-align:center;
+  }
+  [data-theme="dark"] .toast{background:var(--surface); color:var(--ink); border:1px solid var(--border);}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+
+  /* ---------- View transition ---------- */
+  .view-enter{animation:fadeUp .28s ease both;}
+  @keyframes fadeUp{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001s !important; transition-duration:0.001s !important;}
+  }
+
+  :focus-visible{outline:2.5px solid var(--accent); outline-offset:2px;}
+
+  footer.spacer{height:6px;}
+</style>
+</head>
+<body data-theme="light">
+<div id="app"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ===================== STATE ===================== */
+  var state = {
+    view: 'home',            // home | form | loading | results | projects | error
+    theme: 'light',
+    projects: [],
+    draft: {
+      topic:'', level:'', discipline:'', country:''
+    },
+    editingProjectId: null,  // if editing an existing saved project's input
+    currentResult: null,     // {input:{...}, result:{...}}
+    resultContext: 'draft',  // 'draft' (unsaved, just generated) | 'saved' (opened from list)
+    openProjectId: null,
+    errorMessage: ''
+  };
+
+  var LEVELS = ["Undergraduate", "Postgraduate (Master's)", "Doctoral (PhD)", "Early-career researcher"];
+  var DISCIPLINE_SUGGESTIONS = ["Public Health","Computer Science","Economics","Education","Psychology","Environmental Science","Business & Management","Sociology","Political Science","Engineering","Nursing","Law"];
+
+  /* ===================== STORAGE ===================== */
+  async function loadProjects(){
+    try{
+      var res = await window.storage.get('projects', false);
+      if(res && res.value){
+        state.projects = JSON.parse(res.value);
+      } else {
+        state.projects = [];
+      }
+    }catch(e){
+      state.projects = [];
+    }
+  }
+  async function saveProjectsToStorage(){
+    try{
+      await window.storage.set('projects', JSON.stringify(state.projects), false);
+      return true;
+    }catch(e){
+      return false;
+    }
+  }
+  async function loadTheme(){
+    try{
+      var res = await window.storage.get('theme', false);
+      if(res && res.value){ state.theme = res.value; }
+    }catch(e){ /* default light */ }
+  }
+  async function saveTheme(){
+    try{ await window.storage.set('theme', state.theme, false); }catch(e){}
+  }
+
+  /* ===================== HELPERS ===================== */
+  function esc(str){
+    return String(str==null?'':str).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function fmtDate(iso){
+    try{
+      var d = new Date(iso);
+      return d.toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'});
+    }catch(e){ return ''; }
+  }
+  function uid(){ return 'proj_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+
+  var toastTimer = null;
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    if(!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+  }
+
+  /* ===================== GENERATION (Claude API) ===================== */
+  async function generateDirection(input){
+    var system = "You are a careful, encouraging academic research advisor helping a " + input.level +
+      " student in " + input.discipline + " (studying in " + input.country + ") turn a rough idea into a preliminary research direction. " +
+      "Respond with ONLY valid JSON, no markdown code fences, no commentary, matching exactly this shape: " +
+      '{"refinedTopic": string, "problemDirection": string, "generalObjective": string, ' +
+      '"specificObjectives": string[3 to 5 items], "researchQuestions": string[same count as specificObjectives, each question corresponds by index to the objective at the same index], ' +
+      '"keywords": string[5 to 8 short items], "rationale": string}. ' +
+      "Keep every field concise (1-2 sentences max, keywords are short phrases). Be academically sound but approachable, and appropriate to the stated academic level and discipline. Do not include any text outside the JSON object.";
+
+    var userMsg = "Rough research idea: \"" + input.topic + "\"\nAcademic level: " + input.level +
+      "\nDiscipline/field: " + input.discipline + "\nCountry/study context: " + input.country;
+
+    var response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        system: system,
+        messages: [{ role: "user", content: userMsg }]
+      })
+    });
+
+    if(!response.ok){
+      throw new Error("Request failed");
+    }
+    var data = await response.json();
+    var textBlock = (data.content || []).map(function(b){ return b.type === 'text' ? b.text : ''; }).join('');
+    var clean = textBlock.replace(/```json/gi, '').replace(/```/g, '').trim();
+    var parsed;
+    try{
+      parsed = JSON.parse(clean);
+    }catch(e){
+      var match = clean.match(/\{[\s\S]*\}/);
+      if(match){ parsed = JSON.parse(match[0]); }
+      else{ throw new Error("Could not parse response"); }
+    }
+    if(!parsed.specificObjectives || !parsed.researchQuestions){
+      throw new Error("Incomplete response");
+    }
+    return parsed;
+  }
+
+  /* ===================== RENDER ===================== */
+  function render(){
+    var app = document.getElementById('app');
+    document.body.setAttribute('data-theme', state.theme);
+    var html = topbarHTML();
+    html += '<main>';
+    switch(state.view){
+      case 'home': html += renderHome(); break;
+      case 'form': html += renderForm(); break;
+      case 'loading': html += renderLoading(); break;
+      case 'results': html += renderResults(); break;
+      case 'projects': html += renderProjects(); break;
+      case 'error': html += renderError(); break;
+      default: html += renderHome();
+    }
+    html += '</main><footer class="spacer"></footer>';
+    html += '<div class="toast" id="toast" role="status" aria-live="polite"></div>';
+    app.innerHTML = html;
+    var mainEl = app.querySelector('main');
+    if(mainEl){ mainEl.classList.add('view-enter'); }
+    var firstField = app.querySelector('main [autofocus]');
+    if(firstField){ firstField.focus(); }
+  }
+
+  function topbarHTML(){
+    return '' +
+      '<div class="topbar">' +
+        '<button class="brandmark" data-action="go-home" aria-label="Research 911 home">' +
+          '<span class="mark">Research&nbsp;911</span>' +
+        '</button>' +
+        '<button class="theme-toggle" data-action="toggle-theme" aria-pressed="' + (state.theme==='dark') + '" aria-label="Toggle dark mode">' +
+          (state.theme === 'dark' ? '&#9728;' : '&#9789;') +
+        '</button>' +
+      '</div>';
+  }
+
+  function heroVisualSVG(){
+    return '' +
+    '<svg class="hero-visual" viewBox="0 0 320 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<circle cx="46" cy="34" r="5" fill="var(--accent)" opacity="0.25"/>' +
+      '<circle cx="70" cy="58" r="3.5" fill="var(--accent)" opacity="0.35"/>' +
+      '<circle cx="34" cy="66" r="4" fill="var(--accent)" opacity="0.3"/>' +
+      '<circle cx="60" cy="20" r="3" fill="var(--accent)" opacity="0.4"/>' +
+      '<circle cx="88" cy="40" r="2.5" fill="var(--accent)" opacity="0.3"/>' +
+      '<path id="r911path" d="M50 46 C 120 46, 150 110, 260 96" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 6" stroke-linecap="round" fill="none" opacity="0.6">' +
+        '<animate attributeName="stroke-dashoffset" from="0" to="-220" dur="7s" repeatCount="indefinite"/>' +
+      '</path>' +
+      '<circle cx="262" cy="95" r="7" fill="var(--accent)"/>' +
+      '<circle cx="262" cy="95" r="13" stroke="var(--accent)" stroke-width="1.5" opacity="0.4"/>' +
+    '</svg>';
+  }
+
+  function renderHome(){
+    return '' +
+    '<div class="hero">' +
+      heroVisualSVG() +
+      '<div class="eyebrow">A calmer way to start</div>' +
+      '<h1 class="brand-title">Research&nbsp;911</h1>' +
+      '<div class="tagline">Research made easy.</div>' +
+    '</div>' +
+    '<p class="explainer">Got a research idea but don\'t know where to start? Let\'s turn it into a workable research direction.</p>' +
+    '<div class="home-actions">' +
+      '<button class="btn btn-primary" data-action="start-research">Start My Research</button>' +
+      '<button class="btn btn-secondary" data-action="view-projects">My Research Projects' + (state.projects.length ? ' <span style="opacity:.6">(' + state.projects.length + ')</span>' : '') + '</button>' +
+    '</div>' +
+    '<div class="reassurance">"You don\'t have to figure out research alone."</div>';
+  }
+
+  function renderForm(){
+    var d = state.draft;
+    var isEdit = !!state.editingProjectId;
+    var opts = LEVELS.map(function(l){
+      return '<option value="'+esc(l)+'" '+(d.level===l?'selected':'')+'>'+esc(l)+'</option>';
+    }).join('');
+    var datalist = DISCIPLINE_SUGGESTIONS.map(function(x){ return '<option value="'+esc(x)+'">'; }).join('');
+
+    return '' +
+    '<div class="back-row"><button class="back-btn" data-action="go-home">&larr; Back</button></div>' +
+    '<h2 class="page-title">' + (isEdit ? 'Edit your research idea' : 'Tell us about your idea') + '</h2>' +
+    '<p class="page-sub">A rough sentence is enough — we\'ll help shape it into something clearer.</p>' +
+    '<form id="idea-form" novalidate>' +
+      '<div class="field ' + (state.errorMessage ? 'has-error' : '') + '" id="field-topic">' +
+        '<label for="topic">Research topic / idea</label>' +
+        '<textarea id="topic" name="topic" autofocus placeholder="e.g. Something about how social media affects teenagers\' mental health...">' + esc(d.topic) + '</textarea>' +
+        (state.errorMessage ? '<div class="field-error">&#9888; ' + esc(state.errorMessage) + '</div>' : '<span class="hint">Don\'t worry about wording it perfectly — vague is fine.</span>') +
+      '</div>' +
+      '<div class="field">' +
+        '<label for="level">Academic level</label>' +
+        '<select id="level" name="level">' +
+          '<option value="">Select your level&hellip;</option>' + opts +
+        '</select>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label for="discipline">Discipline / field</label>' +
+        '<input id="discipline" name="discipline" list="discipline-list" placeholder="e.g. Public Health, Computer Science, Economics&hellip;" value="' + esc(d.discipline) + '">' +
+        '<datalist id="discipline-list">' + datalist + '</datalist>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label for="country">Country / study context</label>' +
+        '<input id="country" name="country" placeholder="e.g. Cameroon, remote programme, UK-based&hellip;" value="' + esc(d.country) + '">' +
+        '<span class="hint">Helps tailor examples and context to where you\'re studying.</span>' +
+      '</div>' +
+      '<button type="submit" class="btn btn-primary">Get My Research Direction</button>' +
+    '</form>';
+  }
+
+  function renderLoading(){
+    return '<div class="card loading-card">' +
+      '<div class="spinner" aria-hidden="true"></div>' +
+      '<h3 style="font-family:var(--font-body); font-size:1.05rem;">Shaping your research direction&hellip;</h3>' +
+      '<p class="loading-msg">Refining your topic, drafting objectives, and lining up your research questions.</p>' +
+    '</div>';
+  }
+
+  function renderError(){
+    return '<div class="card loading-card">' +
+      '<div style="font-size:2rem;">&#9888;</div>' +
+      '<h3 style="font-family:var(--font-body); font-size:1.05rem;">That didn\'t quite work.</h3>' +
+      '<p class="loading-msg">' + esc(state.errorMessage || 'Something interrupted the generation. Let\'s try again.') + '</p>' +
+      '<div class="btn-row" style="width:100%;">' +
+        '<button class="btn btn-secondary" data-action="go-home">Go home</button>' +
+        '<button class="btn btn-primary" data-action="retry-generate">Try again</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderResults(){
+    var r = state.currentResult;
+    if(!r) return renderError();
+    var res = r.result;
+    var objPairs = res.specificObjectives.map(function(obj, i){
+      var q = res.researchQuestions[i] || '';
+      return '' +
+      '<div class="obj-pair">' +
+        '<div class="obj-label">Objective ' + (i+1) + '</div>' +
+        '<p>' + esc(obj) + '</p>' +
+        '<div class="obj-label q-label" style="margin-top:10px;">Research question ' + (i+1) + '</div>' +
+        '<p>' + esc(q) + '</p>' +
+      '</div>';
+    }).join('');
+    var keywordChips = (res.keywords || []).map(function(k){
+      return '<span class="keyword-chip">' + esc(k) + '</span>';
+    }).join('');
+
+    var isDraft = state.resultContext === 'draft';
+    var actionButtons = isDraft ? (
+      '<div class="btn-row">' +
+        '<button class="btn btn-primary" data-action="save-project">Save Project</button>' +
+      '</div>' +
+      '<div class="btn-row" style="margin-top:10px;">' +
+        '<button class="btn btn-secondary" data-action="edit-draft">Edit</button>' +
+        '<button class="btn btn-ghost" data-action="start-again">Start Again</button>' +
+      '</div>'
+    ) : (
+      '<div class="btn-row">' +
+        '<button class="btn btn-secondary" data-action="edit-draft">Edit</button>' +
+        '<button class="btn btn-ghost" data-action="view-projects">All Projects</button>' +
+      '</div>' +
+      '<div class="btn-row" style="margin-top:10px;">' +
+        '<button class="btn-danger-text" style="width:100%;" data-action="delete-open-project">Delete this project</button>' +
+      '</div>'
+    );
+
+    return '' +
+    '<div class="back-row"><button class="back-btn" data-action="' + (isDraft ? 'edit-draft' : 'view-projects') + '">&larr; Back</button></div>' +
+    '<div style="margin-bottom:14px;"><span class="prelim-badge">&#9673; Preliminary Research Direction</span></div>' +
+    '<div class="disclaimer">This is a starting point, not a final thesis or a guaranteed-correct answer. Refine it further with your literature review, methodology, and your supervisor\'s guidance.</div>' +
+    '<div class="stack" style="margin-top:18px;">' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">1</span> Refined Research Topic</h3>' +
+        '<p>' + esc(res.refinedTopic) + '</p>' +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">2</span> Research Problem Direction</h3>' +
+        '<p>' + esc(res.problemDirection) + '</p>' +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">3</span> General Objective</h3>' +
+        '<p>' + esc(res.generalObjective) + '</p>' +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">4</span> Specific Objectives &amp; Research Questions</h3>' +
+        objPairs +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">5</span> Suggested Keywords</h3>' +
+        '<div class="keywords">' + keywordChips + '</div>' +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">6</span> Why This Direction Works</h3>' +
+        '<p>' + esc(res.rationale) + '</p>' +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-top:24px;">' + actionButtons + '</div>';
+  }
+
+  function renderProjects(){
+    var back = '<div class="back-row"><button class="back-btn" data-action="go-home">&larr; Back</button></div>';
+    if(!state.projects.length){
+      return back + '<div class="empty-state">' +
+        '<div class="glyph">&#128220;</div>' +
+        '<h3>No projects yet</h3>' +
+        '<p>Once you generate a research direction, save it here so you can pick up right where you left off.</p>' +
+        '<button class="btn btn-primary" data-action="start-research">Start My Research</button>' +
+      '</div>';
+    }
+    var sorted = state.projects.slice().sort(function(a,b){ return new Date(b.updatedAt) - new Date(a.updatedAt); });
+    var items = sorted.map(function(p){
+      return '' +
+      '<div class="project-item">' +
+        '<div>' +
+          '<div class="project-title">' + esc(p.title) + '</div>' +
+          '<div class="project-meta">Updated ' + fmtDate(p.updatedAt) + '</div>' +
+        '</div>' +
+        '<div class="project-actions">' +
+          '<button class="btn btn-secondary btn-sm" data-action="open-project" data-id="' + p.id + '">Open</button>' +
+          '<button class="btn-danger-text btn-sm" data-action="delete-project" data-id="' + p.id + '">Delete</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    return back + '<h2 class="page-title">My Research Projects</h2><p class="page-sub">' + state.projects.length + ' saved</p><div class="stack">' + items + '</div>';
+  }
+
+  /* ===================== ACTIONS ===================== */
+  function resetDraft(){
+    state.draft = { topic:'', level:'', discipline:'', country:'' };
+    state.editingProjectId = null;
+    state.errorMessage = '';
+  }
+
+  async function handleFormSubmit(formEl){
+    var topic = formEl.topic.value.trim();
+    var level = formEl.level.value;
+    var discipline = formEl.discipline.value.trim();
+    var country = formEl.country.value.trim();
+
+    if(!topic || topic.length < 4){
+      state.errorMessage = "Tell us a little about your research idea first.";
+      state.draft = { topic:topic, level:level, discipline:discipline, country:country };
+      render();
+      return;
+    }
+    state.errorMessage = '';
+    state.draft = {
+      topic: topic,
+      level: level || "Not specified",
+      discipline: discipline || "General / interdisciplinary",
+      country: country || "Not specified"
+    };
+    state.view = 'loading';
+    render();
+
+    try{
+      var result = await generateDirection(state.draft);
+      state.currentResult = { input: state.draft, result: result };
+      state.resultContext = 'draft';
+      state.view = 'results';
+      render();
+    }catch(e){
+      state.errorMessage = "We couldn't generate your research direction just now. Please try again in a moment.";
+      state.view = 'error';
+      render();
+    }
+  }
+
+  async function retryGenerate(){
+    state.view = 'loading';
+    render();
+    try{
+      var result = await generateDirection(state.draft);
+      state.currentResult = { input: state.draft, result: result };
+      state.resultContext = 'draft';
+      state.view = 'results';
+      render();
+    }catch(e){
+      state.errorMessage = "Still having trouble generating your direction. Please try again shortly.";
+      state.view = 'error';
+      render();
+    }
+  }
+
+  async function saveProject(){
+    var now = new Date().toISOString();
+    if(state.editingProjectId){
+      var idx = state.projects.findIndex(function(p){ return p.id === state.editingProjectId; });
+      if(idx > -1){
+        state.projects[idx].input = state.currentResult.input;
+        state.projects[idx].result = state.currentResult.result;
+        state.projects[idx].title = state.currentResult.result.refinedTopic || state.currentResult.input.topic;
+        state.projects[idx].updatedAt = now;
+      }
+    } else {
+      state.projects.push({
+        id: uid(),
+        title: state.currentResult.result.refinedTopic || state.currentResult.input.topic,
+        createdAt: now,
+        updatedAt: now,
+        input: state.currentResult.input,
+        result: state.currentResult.result
+      });
+    }
+    var ok = await saveProjectsToStorage();
+    showToast(ok ? "Project saved." : "Couldn't save right now — please try again.");
+    if(ok){
+      state.resultContext = 'saved';
+      state.openProjectId = state.editingProjectId || state.projects[state.projects.length-1].id;
+      state.editingProjectId = null;
+      render();
+    }
+  }
+
+  async function deleteProject(id){
+    state.projects = state.projects.filter(function(p){ return p.id !== id; });
+    await saveProjectsToStorage();
+    showToast("Project deleted.");
+    if(state.openProjectId === id){ state.view = 'projects'; }
+    render();
+  }
+
+  function openProject(id){
+    var p = state.projects.find(function(p){ return p.id === id; });
+    if(!p) return;
+    state.currentResult = { input: p.input, result: p.result };
+    state.resultContext = 'saved';
+    state.openProjectId = p.id;
+    state.view = 'results';
+    render();
+  }
+
+  function editDraft(){
+    var src = state.currentResult ? state.currentResult.input : state.draft;
+    state.draft = {
+      topic: src.topic || '',
+      level: (LEVELS.indexOf(src.level) > -1) ? src.level : '',
+      discipline: (src.discipline === "General / interdisciplinary") ? '' : (src.discipline || ''),
+      country: (src.country === "Not specified") ? '' : (src.country || '')
+    };
+    if(state.resultContext === 'saved'){ state.editingProjectId = state.openProjectId; }
+    state.errorMessage = '';
+    state.view = 'form';
+    render();
+  }
+
+  /* ===================== EVENTS ===================== */
+  function bindEvents(){
+    var app = document.getElementById('app');
+
+    app.addEventListener('click', function(e){
+      var actEl = e.target.closest('[data-action]');
+      if(!actEl) return;
+      var action = actEl.getAttribute('data-action');
+      var id = actEl.getAttribute('data-id');
+
+      switch(action){
+        case 'go-home':
+          resetDraft();
+          state.view = 'home';
+          render();
+          break;
+        case 'start-research':
+          resetDraft();
+          state.view = 'form';
+          render();
+          break;
+        case 'view-projects':
+          state.view = 'projects';
+          render();
+          break;
+        case 'toggle-theme':
+          state.theme = state.theme === 'dark' ? 'light' : 'dark';
+          saveTheme();
+          render();
+          break;
+        case 'save-project':
+          saveProject();
+          break;
+        case 'edit-draft':
+          editDraft();
+          break;
+        case 'start-again':
+          resetDraft();
+          state.view = 'form';
+          render();
+          break;
+        case 'retry-generate':
+          retryGenerate();
+          break;
+        case 'open-project':
+          openProject(id);
+          break;
+        case 'delete-project':
+          if(confirm('Delete this project? This can\'t be undone.')){ deleteProject(id); }
+          break;
+        case 'delete-open-project':
+          if(confirm('Delete this project? This can\'t be undone.')){ deleteProject(state.openProjectId); }
+          break;
+      }
+    });
+
+    app.addEventListener('submit', function(e){
+      if(e.target && e.target.id === 'idea-form'){
+        e.preventDefault();
+        handleFormSubmit(e.target);
+      }
+    });
+  }
+
+  /* ===================== INIT ===================== */
+  async function init(){
+    bindEvents();
+    render(); // render immediately so the app isn't blank while storage loads
+    await Promise.all([loadTheme(), loadProjects()]);
+    render();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
