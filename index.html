@@ -335,48 +335,89 @@
     toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
   }
 
-  /* ===================== GENERATION (Claude API) ===================== */
-  async function generateDirection(input){
-    var system = "You are a careful, encouraging academic research advisor helping a " + input.level +
-      " student in " + input.discipline + " (studying in " + input.country + ") turn a rough idea into a preliminary research direction. " +
-      "Respond with ONLY valid JSON, no markdown code fences, no commentary, matching exactly this shape: " +
-      '{"refinedTopic": string, "problemDirection": string, "generalObjective": string, ' +
-      '"specificObjectives": string[3 to 5 items], "researchQuestions": string[same count as specificObjectives, each question corresponds by index to the objective at the same index], ' +
-      '"keywords": string[5 to 8 short items], "rationale": string}. ' +
-      "Keep every field concise (1-2 sentences max, keywords are short phrases). Be academically sound but approachable, and appropriate to the stated academic level and discipline. Do not include any text outside the JSON object.";
-
-    var userMsg = "Rough research idea: \"" + input.topic + "\"\nAcademic level: " + input.level +
-      "\nDiscipline/field: " + input.discipline + "\nCountry/study context: " + input.country;
-
-    var response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        system: system,
-        messages: [{ role: "user", content: userMsg }]
-      })
+  /* ===================== GENERATION (local, no network needed) ===================== */
+  function hashStr(s){
+    var h = 0;
+    for(var i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) >>> 0; }
+    return h;
+  }
+  function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+  function pickTpl(arr, seed){ return arr[Math.abs(seed) % arr.length]; }
+  function fillTpl(tpl, vars){
+    return tpl.replace(/\{(\w+)\}/g, function(_, k){ return vars[k] != null ? vars[k] : ''; });
+  }
+  var STOPWORDS = ["the","and","for","with","that","this","from","are","was","were","have","has","had","about","into","onto","their","them","they","you","your","its","of","in","on","to","a","an","is","as","by","or","at","how","does","do","i","we","our","my","me"];
+  function extractKeywords(topic, discipline, country, seed){
+    var words = topic.toLowerCase().replace(/[^a-z0-9\s']/g, ' ').split(/\s+/).filter(function(w){
+      return w.length > 3 && STOPWORDS.indexOf(w) === -1;
     });
+    var seen = {}, uniqueWords = [];
+    words.forEach(function(w){ if(!seen[w]){ seen[w] = true; uniqueWords.push(cap(w)); } });
+    var bonusBank = ["Qualitative Analysis","Case Study","Comparative Study","Policy Implications","Emerging Trends","Context-Specific Research","Mixed Methods","Empirical Study"];
+    var bonus = bonusBank[Math.abs(seed) % bonusBank.length];
+    var kws = uniqueWords.slice(0,4).concat([discipline, country, bonus]);
+    var out = [], seen2 = {};
+    kws.forEach(function(k){
+      var key = (k || '').toLowerCase();
+      if(k && !seen2[key]){ seen2[key] = true; out.push(k); }
+    });
+    return out.slice(0,8);
+  }
 
-    if(!response.ok){
-      throw new Error("Request failed");
-    }
-    var data = await response.json();
-    var textBlock = (data.content || []).map(function(b){ return b.type === 'text' ? b.text : ''; }).join('');
-    var clean = textBlock.replace(/```json/gi, '').replace(/```/g, '').trim();
-    var parsed;
-    try{
-      parsed = JSON.parse(clean);
-    }catch(e){
-      var match = clean.match(/\{[\s\S]*\}/);
-      if(match){ parsed = JSON.parse(match[0]); }
-      else{ throw new Error("Could not parse response"); }
-    }
-    if(!parsed.specificObjectives || !parsed.researchQuestions){
-      throw new Error("Incomplete response");
-    }
-    return parsed;
+  async function generateDirection(input){
+    // brief pause so the loading screen registers as real work
+    await new Promise(function(res){ setTimeout(res, 900); });
+
+    var seed = hashStr(input.topic.toLowerCase());
+    var vars = {
+      topic: input.topic.trim().replace(/\.$/, ''),
+      discipline: input.discipline,
+      country: input.country,
+      level: input.level
+    };
+
+    var refinedTopicTemplates = [
+      "An Examination of {topic} within {discipline}",
+      "{topic}: A {discipline} Perspective",
+      "Investigating {topic} in the Context of {discipline} in {country}",
+      "Understanding {topic}: Insights from {discipline}",
+      "A {discipline} Study of {topic}"
+    ];
+    var problemDirectionTemplates = [
+      "Despite growing interest in this area, there remains limited context-specific evidence on {topic} within {discipline}, particularly in {country}. This creates a gap in understanding that warrants closer academic investigation.",
+      "While {topic} has been explored in broader literature, few studies examine it specifically through a {discipline} lens in {country}, leaving practitioners and policymakers without locally grounded evidence.",
+      "Current research on {topic} tends to be general or drawn from other contexts, meaning its specific dynamics within {discipline} in {country} are not yet well understood."
+    ];
+    var generalObjectiveTemplates = [
+      "To examine {topic} within the field of {discipline}, with particular attention to the context of {country}.",
+      "To investigate the key factors and implications of {topic} from a {discipline} perspective in {country}.",
+      "To critically explore {topic} and its significance for {discipline} research in {country}."
+    ];
+    var rationaleTemplates = [
+      "This direction works because it narrows a broad idea into a focused, researchable problem grounded in {discipline} and relevant to {country}. The objectives and questions above give you a starting structure for a literature review and methodology section — refine the wording further as you read more in {discipline} and get feedback from your supervisor.",
+      "This direction works because it turns a general interest into a specific problem that can actually be studied, with objectives that build logically toward answering the research questions. Treat it as a first draft: sharpen it against the literature in {discipline} and your institution's requirements."
+    ];
+
+    var subs = [
+      {obj:"To identify the key factors contributing to {topic}.", q:"What are the key factors contributing to {topic}?"},
+      {obj:"To assess the effects of {topic} within the field of {discipline}.", q:"What effects does {topic} have within the field of {discipline}?"},
+      {obj:"To explore how relevant stakeholders in {country} perceive and experience {topic}.", q:"How do relevant stakeholders in {country} perceive and experience {topic}?"},
+      {obj:"To examine existing approaches or responses related to {topic}.", q:"What existing approaches or responses relate to {topic}?"},
+      {obj:"To propose recommendations for addressing {topic} based on the study's findings.", q:"What recommendations can be made to address {topic} based on the study's findings?"}
+    ];
+    var chosen = (seed % 2 === 1)
+      ? [subs[0], subs[1], subs[3], subs[4]]
+      : [subs[0], subs[1], subs[2], subs[4]];
+
+    return {
+      refinedTopic: fillTpl(pickTpl(refinedTopicTemplates, seed), vars),
+      problemDirection: fillTpl(pickTpl(problemDirectionTemplates, seed + 1), vars),
+      generalObjective: fillTpl(pickTpl(generalObjectiveTemplates, seed + 2), vars),
+      specificObjectives: chosen.map(function(s){ return fillTpl(s.obj, vars); }),
+      researchQuestions: chosen.map(function(s){ return fillTpl(s.q, vars); }),
+      keywords: extractKeywords(vars.topic, vars.discipline, vars.country, seed),
+      rationale: fillTpl(pickTpl(rationaleTemplates, seed + 3), vars)
+    };
   }
 
   /* ===================== RENDER ===================== */
