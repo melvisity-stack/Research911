@@ -264,7 +264,7 @@
 
   /* ===================== STATE ===================== */
   var state = {
-    view: 'home',            // home | form | loading | results | projects | error
+    view: 'home',            // home | form | loading | results | projects | error | paywall
     theme: 'light',
     projects: [],
     draft: {
@@ -274,7 +274,8 @@
     currentResult: null,     // {input:{...}, result:{...}}
     resultContext: 'draft',  // 'draft' (unsaved, just generated) | 'saved' (opened from list)
     openProjectId: null,
-    errorMessage: ''
+    errorMessage: '',
+    freeTrialUsed: false
   };
 
   var LEVELS = ["Undergraduate", "Postgraduate (Master's)", "Doctoral (PhD)", "Early-career researcher"];
@@ -292,6 +293,22 @@
     }catch(e){
       state.projects = [];
     }
+  }
+  async function loadTrialStatus(){
+    try{
+      var res = await window.storage.get('freeTrialUsed', false);
+      state.freeTrialUsed = !!(res && res.value === 'true');
+    }catch(e){
+      state.freeTrialUsed = false;
+    }
+  }
+  async function markTrialUsed(){
+    state.freeTrialUsed = true;
+    try{ await window.storage.set('freeTrialUsed', 'true', false); }catch(e){}
+  }
+  async function resetTrial(){
+    state.freeTrialUsed = false;
+    try{ await window.storage.set('freeTrialUsed', 'false', false); }catch(e){}
   }
   async function saveProjectsToStorage(){
     try{
@@ -342,6 +359,18 @@
     return h;
   }
   function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+  function titleCase(s){
+    return String(s || '').split(/\s+/).map(function(w){
+      return w ? w.charAt(0).toUpperCase() + w.slice(1) : w;
+    }).join(' ');
+  }
+  function article(word){
+    return /^[aeiou]/i.test(String(word || '').trim()) ? 'An' : 'A';
+  }
+  function isPluralLike(topic){
+    var t = String(topic || '').trim().toLowerCase();
+    return /[a-z]s$/.test(t) && !/ss$/.test(t);
+  }
   function pickTpl(arr, seed){ return arr[Math.abs(seed) % arr.length]; }
   function fillTpl(tpl, vars){
     return tpl.replace(/\{(\w+)\}/g, function(_, k){ return vars[k] != null ? vars[k] : ''; });
@@ -364,24 +393,58 @@
     return out.slice(0,8);
   }
 
+  // If you deploy the backend (see research911-backend/), paste its URL below,
+  // e.g. "https://research911-backend.onrender.com". Leave empty to always use
+  // the local generator.
+  var BACKEND_URL = "";
+
   async function generateDirection(input){
+    if(BACKEND_URL){
+      try{
+        var controller = new AbortController();
+        var timeout = setTimeout(function(){ controller.abort(); }, 15000);
+        var res = await fetch(BACKEND_URL.replace(/\/$/, '') + '/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        if(res.ok){
+          var parsed = await res.json();
+          if(parsed && parsed.specificObjectives && parsed.researchQuestions){
+            return parsed;
+          }
+        }
+      }catch(e){
+        // backend unreachable or slow — fall through to the local generator below
+      }
+    }
+    return generateDirectionLocal(input);
+  }
+
+  async function generateDirectionLocal(input){
     // brief pause so the loading screen registers as real work
     await new Promise(function(res){ setTimeout(res, 900); });
 
     var seed = hashStr(input.topic.toLowerCase());
     var vars = {
       topic: input.topic.trim().replace(/\.$/, ''),
-      discipline: input.discipline,
-      country: input.country,
+      topicCap: cap(input.topic.trim().replace(/\.$/, '')),
+      discipline: titleCase(input.discipline),
+      country: titleCase(input.country),
       level: input.level
     };
+    vars.article = article(vars.discipline);
+    vars.doDoes = isPluralLike(vars.topic) ? 'do' : 'does';
+    vars.hasHave = isPluralLike(vars.topic) ? 'have' : 'has';
 
     var refinedTopicTemplates = [
       "An Examination of {topic} within {discipline}",
-      "{topic}: A {discipline} Perspective",
+      "{topicCap}: {article} {discipline} Perspective",
       "Investigating {topic} in the Context of {discipline} in {country}",
       "Understanding {topic}: Insights from {discipline}",
-      "A {discipline} Study of {topic}"
+      "{article} {discipline} Study of {topic}"
     ];
     var problemDirectionTemplates = [
       "Despite growing interest in this area, there remains limited context-specific evidence on {topic} within {discipline}, particularly in {country}. This creates a gap in understanding that warrants closer academic investigation.",
@@ -393,30 +456,48 @@
       "To investigate the key factors and implications of {topic} from a {discipline} perspective in {country}.",
       "To critically explore {topic} and its significance for {discipline} research in {country}."
     ];
-    var rationaleTemplates = [
-      "This direction works because it narrows a broad idea into a focused, researchable problem grounded in {discipline} and relevant to {country}. The objectives and questions above give you a starting structure for a literature review and methodology section — refine the wording further as you read more in {discipline} and get feedback from your supervisor.",
-      "This direction works because it turns a general interest into a specific problem that can actually be studied, with objectives that build logically toward answering the research questions. Treat it as a first draft: sharpen it against the literature in {discipline} and your institution's requirements."
+    var abstractTemplates = [
+      "This study explores {topic} within the field of {discipline}, with particular attention to the context of {country}. In recent years, {discipline} has increasingly recognized the need for locally grounded evidence that reflects the specific realities of {country}, rather than relying solely on findings drawn from other settings or contexts. Despite this growing awareness, research that directly investigates {topic} through a {discipline} lens in {country} remains limited, leaving a gap in both the academic literature and practical decision-making around the issue. This research addresses that gap by examining the key factors, effects, and stakeholder perspectives associated with {topic}, aiming to generate findings that are both academically rigorous and practically relevant to those working in and around {discipline}. At the {level} level, this study is designed as a structured preliminary inquiry: it begins by refining a broad area of interest into a focused, researchable problem, then develops specific objectives and corresponding research questions to guide subsequent data collection and analysis. The study further anticipates that {topic} is shaped by a combination of contextual, structural, and perceptual factors specific to {discipline} and {country}, and sets out to test this expectation through hypotheses linked directly to each objective. Methodologically, the study is expected to draw on approaches established within {discipline}, adapted to fit the realities of {country} and the appropriate scope of a {level} project. By combining a clear problem statement with well-defined objectives, questions, and hypotheses, this direction gives the researcher a defensible starting point for a literature review, methodology chapter, and eventual fieldwork. Ultimately, the findings are expected to contribute new, context-specific knowledge to {discipline} while offering practical insight of value to stakeholders engaged with {topic} in {country}.",
+      "This research investigates {topic} through the lens of {discipline}, situated specifically within {country}. While {topic} has received attention in broader academic and policy literature, much of this work draws on evidence from other regions or contexts, leaving a noticeable gap in locally grounded understanding relevant to {country}. This study responds to that gap by developing a focused, {level}-appropriate research direction that moves from a general area of interest toward a clearly defined problem, set of objectives, and corresponding research questions. It is expected that {topic} is influenced by a combination of factors specific to {discipline} and the lived realities of {country}, an expectation that is formalized later in this direction through hypotheses tied directly to each specific objective. In pursuing this direction, the study aims not only to describe the current state of {topic} but also to assess its effects, explore how relevant stakeholders perceive and experience it, and consider what responses or interventions might be appropriate going forward. The intended contribution is twofold: academically, the study adds context-specific evidence to a body of {discipline} literature that has often generalized across very different settings; practically, its findings may support practitioners, policymakers, and communities engaging with {topic} in {country}. As a preliminary direction rather than a completed study, this abstract outlines an approach that a {level} researcher can refine further through a fuller literature review, an appropriate methodology, and guidance from a supervisor, while already offering a coherent structure linking problem, objectives, questions, and hypotheses together."
+    ];
+    var significanceTemplates = [
+      "This study is significant because it addresses a documented gap in context-specific research on {topic} within {discipline}, particularly in {country}. Academically, it contributes to the broader body of {discipline} literature by grounding its analysis in local realities rather than assumptions carried over from other contexts, offering a foundation that later researchers in {country} can build on. Practically, the findings may be of direct value to policymakers, practitioners, and other stakeholders engaging with {topic}, offering evidence that can inform decisions, interventions, or further research. For the researcher, completing this study also builds practical experience in research design, data collection, and academic writing relevant to a {level} program in {discipline}.",
+      "The significance of this study lies in both its academic and practical contributions. Academically, it extends {discipline} research into a specific, under-examined context — {country} — where evidence relating to {topic} has so far been limited, helping to correct an imbalance in a literature that often generalizes across very different settings. Practically, its findings are expected to be useful to institutions, communities, and practitioners engaging with {topic} in {country}, potentially informing more context-appropriate responses or policies. At a personal and academic level, undertaking this study also equips the {level} researcher with transferable skills in problem definition, hypothesis development, and structured inquiry within {discipline}."
+    ];
+    var indicativeReadingTemplates = [
+      "Recent peer-reviewed journal articles (last 5-10 years) on {topic} within {discipline} — search Google Scholar, JSTOR, or your institution's library database.",
+      "Foundational or widely-cited theoretical texts in {discipline} that relate to {topic}, useful for framing your literature review.",
+      "Reports or working papers from relevant regional or international bodies covering {country} — e.g. government ministries, NGOs, or research institutes active in {discipline}.",
+      "Prior theses or dissertations on related topics from your own or comparable institutions, often available through university repositories.",
+      "Systematic reviews or meta-analyses on {topic}, if available, to quickly understand the current state of evidence in {discipline}.",
+      "Policy briefs or grey literature relevant to {topic} in {country}, useful where formal academic literature is limited."
     ];
 
     var subs = [
-      {obj:"To identify the key factors contributing to {topic}.", q:"What are the key factors contributing to {topic}?"},
-      {obj:"To assess the effects of {topic} within the field of {discipline}.", q:"What effects does {topic} have within the field of {discipline}?"},
-      {obj:"To explore how relevant stakeholders in {country} perceive and experience {topic}.", q:"How do relevant stakeholders in {country} perceive and experience {topic}?"},
-      {obj:"To examine existing approaches or responses related to {topic}.", q:"What existing approaches or responses relate to {topic}?"},
-      {obj:"To propose recommendations for addressing {topic} based on the study's findings.", q:"What recommendations can be made to address {topic} based on the study's findings?"}
+      {obj:"To identify the key factors contributing to {topic}.", q:"What are the key factors contributing to {topic}?", h:"The factors identified are significantly associated with {topic} within {discipline}."},
+      {obj:"To assess the effects of {topic} within the field of {discipline}.", q:"What effects {doDoes} {topic} have within the field of {discipline}?", h:"{topicCap} has a statistically significant effect within the field of {discipline}."},
+      {obj:"To explore how relevant stakeholders in {country} perceive and experience {topic}.", q:"How do relevant stakeholders in {country} perceive and experience {topic}?", h:"There are significant differences in how relevant stakeholders in {country} perceive and experience {topic}."},
+      {obj:"To examine existing approaches or responses related to {topic}.", q:"What existing approaches or responses relate to {topic}?", h:"Existing approaches or responses related to {topic} significantly influence outcomes within {discipline}."},
+      {obj:"To propose recommendations for addressing {topic} based on the study's findings.", q:"What recommendations can be made to address {topic} based on the study's findings?", h:"Recommendations grounded in this study's findings would significantly improve outcomes related to {topic} in {country}."}
     ];
     var chosen = (seed % 2 === 1)
       ? [subs[0], subs[1], subs[3], subs[4]]
       : [subs[0], subs[1], subs[2], subs[4]];
 
     return {
+      abstract: fillTpl(pickTpl(abstractTemplates, seed + 4), vars),
       refinedTopic: fillTpl(pickTpl(refinedTopicTemplates, seed), vars),
       problemDirection: fillTpl(pickTpl(problemDirectionTemplates, seed + 1), vars),
       generalObjective: fillTpl(pickTpl(generalObjectiveTemplates, seed + 2), vars),
+      hypothesis: {
+        items: chosen.map(function(s){ return fillTpl(s.h, vars); }),
+        h0: fillTpl("None of the factors examined above are significantly associated with {topic} within {discipline} in {country}.", vars)
+      },
       specificObjectives: chosen.map(function(s){ return fillTpl(s.obj, vars); }),
       researchQuestions: chosen.map(function(s){ return fillTpl(s.q, vars); }),
       keywords: extractKeywords(vars.topic, vars.discipline, vars.country, seed),
-      rationale: fillTpl(pickTpl(rationaleTemplates, seed + 3), vars)
+      significance: fillTpl(pickTpl(significanceTemplates, seed + 6), vars),
+      indicativeReading: indicativeReadingTemplates.map(function(t){ return fillTpl(t, vars); })
     };
   }
 
@@ -433,6 +514,7 @@
       case 'results': html += renderResults(); break;
       case 'projects': html += renderProjects(); break;
       case 'error': html += renderError(); break;
+      case 'paywall': html += renderPaywall(); break;
       default: html += renderHome();
     }
     html += '</main><footer class="spacer"></footer>';
@@ -504,7 +586,7 @@
       '<div class="field ' + (state.errorMessage ? 'has-error' : '') + '" id="field-topic">' +
         '<label for="topic">Research topic / idea</label>' +
         '<textarea id="topic" name="topic" autofocus placeholder="e.g. Something about how social media affects teenagers\' mental health...">' + esc(d.topic) + '</textarea>' +
-        (state.errorMessage ? '<div class="field-error">&#9888; ' + esc(state.errorMessage) + '</div>' : '<span class="hint">Don\'t worry about wording it perfectly — vague is fine.</span>') +
+        (state.errorMessage ? '<div class="field-error">&#9888; ' + esc(state.errorMessage) + '</div>' : '<span class="hint">A short phrase works, but a fuller sentence gives richer results — e.g. "the impact of deforestation on monkey populations" rather than just "monkeys".</span>') +
       '</div>' +
       '<div class="field">' +
         '<label for="level">Academic level</label>' +
@@ -523,6 +605,9 @@
         '<span class="hint">Helps tailor examples and context to where you\'re studying.</span>' +
       '</div>' +
       '<button type="submit" class="btn btn-primary">Get My Research Direction</button>' +
+      '<p style="text-align:center; color:var(--ink-soft); font-size:0.82rem; margin-top:12px;">' +
+        (state.freeTrialUsed ? '500 XAF per research direction after your free one.' : 'Your first research direction is free.') +
+      '</p>' +
     '</form>';
   }
 
@@ -544,6 +629,27 @@
         '<button class="btn btn-primary" data-action="retry-generate">Try again</button>' +
       '</div>' +
     '</div>';
+  }
+
+  function renderPaywall(){
+    return '' +
+    '<div class="back-row"><button class="back-btn" data-action="edit-draft-form">&larr; Back to edit</button></div>' +
+    '<div class="card" style="text-align:center; padding:32px 24px;">' +
+      '<div style="font-size:2.2rem;">&#128274;</div>' +
+      '<h2 style="font-size:1.3rem; margin-top:12px;">Your free research direction is used</h2>' +
+      '<p style="color:var(--ink-soft); margin-top:10px;">Each additional research direction is <strong>500 XAF</strong> &mdash; about the price of a small airtime top-up.</p>' +
+      '<div class="disclaimer" style="text-align:left; margin-top:22px;">' +
+        '<strong>To pay via MTN MoMo:</strong><br>' +
+        '1. Send 500 XAF to <strong>[Your MoMo Number]</strong><br>' +
+        '2. Use your name as the payment reference<br>' +
+        '3. Tap "I\'ve Paid" below once done' +
+      '</div>' +
+      '<div style="margin-top:24px;" class="btn-row">' +
+        '<button class="btn btn-primary" data-action="confirm-paid">I\'ve Paid &mdash; Continue</button>' +
+      '</div>' +
+      '<p style="color:var(--ink-soft); font-size:0.78rem; margin-top:18px;">This is a placeholder payment step for demo purposes &mdash; automatic MoMo confirmation isn\'t wired up yet.</p>' +
+    '</div>' +
+    '<button class="btn btn-ghost" style="width:100%; margin-top:6px;" data-action="reset-trial">Reset free trial (demo only)</button>';
   }
 
   function renderResults(){
@@ -593,24 +699,48 @@
         '<p>' + esc(res.refinedTopic) + '</p>' +
       '</div>' +
       '<div class="card result-card">' +
-        '<h3><span class="idx">2</span> Research Problem Direction</h3>' +
-        '<p>' + esc(res.problemDirection) + '</p>' +
+        '<h3><span class="idx">2</span> Abstract</h3>' +
+        '<p>' + esc(res.abstract || 'Abstract not available for this saved project — try regenerating it.') + '</p>' +
       '</div>' +
       '<div class="card result-card">' +
-        '<h3><span class="idx">3</span> General Objective</h3>' +
-        '<p>' + esc(res.generalObjective) + '</p>' +
-      '</div>' +
-      '<div class="card result-card">' +
-        '<h3><span class="idx">4</span> Specific Objectives &amp; Research Questions</h3>' +
-        objPairs +
-      '</div>' +
-      '<div class="card result-card">' +
-        '<h3><span class="idx">5</span> Suggested Keywords</h3>' +
+        '<h3><span class="idx">3</span> Suggested Keywords</h3>' +
         '<div class="keywords">' + keywordChips + '</div>' +
       '</div>' +
       '<div class="card result-card">' +
-        '<h3><span class="idx">6</span> Why This Direction Works</h3>' +
-        '<p>' + esc(res.rationale) + '</p>' +
+        '<h3><span class="idx">4</span> Research Problem Direction</h3>' +
+        '<p>' + esc(res.problemDirection) + '</p>' +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">5</span> General Objective</h3>' +
+        '<p>' + esc(res.generalObjective) + '</p>' +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">6</span> Specific Objectives &amp; Research Questions</h3>' +
+        objPairs +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">7</span> Hypothesis</h3>' +
+        (res.hypothesis && res.hypothesis.items ? (
+          res.hypothesis.items.map(function(h, i){
+            return '<div class="obj-label">H' + (i+1) + ' (linked to Objective ' + (i+1) + ')</div><p>' + esc(h) + '</p>';
+          }).join('<div style="height:10px;"></div>') +
+          '<div class="obj-label" style="margin-top:14px;">H0 (Null)</div>' +
+          '<p>' + esc(res.hypothesis.h0) + '</p>'
+        ) : '<p>Hypothesis not available for this saved project — try regenerating it.</p>') +
+        '<div class="disclaimer" style="margin-top:14px;">Hypotheses fit quantitative or mixed-methods designs. If your study is qualitative or exploratory, the research questions above may be all you need.</div>' +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">8</span> Significance of the Study</h3>' +
+        '<p>' + esc(res.significance || 'Significance not available for this saved project — try regenerating it.') + '</p>' +
+      '</div>' +
+      '<div class="card result-card">' +
+        '<h3><span class="idx">9</span> Indicative Areas for Further Reading</h3>' +
+        (res.indicativeReading && res.indicativeReading.length ? (
+          '<ul style="margin:0; padding-left:18px; display:flex; flex-direction:column; gap:10px;">' +
+          res.indicativeReading.map(function(r){ return '<li>' + esc(r) + '</li>'; }).join('') +
+          '</ul>'
+        ) : '<p>Reading directions not available for this saved project — try regenerating it.</p>') +
+        '<div class="disclaimer" style="margin-top:14px;">These are starting points for your own search — not real sources to cite directly. Build your actual reference list from what you find in these places.</div>' +
       '</div>' +
     '</div>' +
     '<div style="margin-top:24px;">' + actionButtons + '</div>';
@@ -669,6 +799,17 @@
       discipline: discipline || "General / interdisciplinary",
       country: country || "Not specified"
     };
+
+    if(state.freeTrialUsed && !state.editingProjectId){
+      state.view = 'paywall';
+      render();
+      return;
+    }
+
+    await runGeneration();
+  }
+
+  async function runGeneration(){
     state.view = 'loading';
     render();
 
@@ -677,6 +818,7 @@
       state.currentResult = { input: state.draft, result: result };
       state.resultContext = 'draft';
       state.view = 'results';
+      if(!state.freeTrialUsed){ await markTrialUsed(); }
       render();
     }catch(e){
       state.errorMessage = "We couldn't generate your research direction just now. Please try again in a moment.";
@@ -807,6 +949,16 @@
         case 'retry-generate':
           retryGenerate();
           break;
+        case 'confirm-paid':
+          runGeneration();
+          break;
+        case 'reset-trial':
+          resetTrial().then(render);
+          break;
+        case 'edit-draft-form':
+          state.view = 'form';
+          render();
+          break;
         case 'open-project':
           openProject(id);
           break;
@@ -831,7 +983,7 @@
   async function init(){
     bindEvents();
     render(); // render immediately so the app isn't blank while storage loads
-    await Promise.all([loadTheme(), loadProjects()]);
+    await Promise.all([loadTheme(), loadProjects(), loadTrialStatus()]);
     render();
   }
 
